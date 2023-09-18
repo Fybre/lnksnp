@@ -1,0 +1,11 @@
+version: '3.4'
+
+services:
+  lnksnp:
+    image: ${DOCKER_REGISTRY-}lnksnp
+    container_name: lnksnp
+    ports:
+      - "5005:80"
+    build:
+      context: .
+      dockerfile: lnksnp/Dockerfile
