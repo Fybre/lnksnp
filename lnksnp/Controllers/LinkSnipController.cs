@@ -20,6 +20,7 @@ namespace lnksnp.Controllers
             _context = context;
         }
 
+
         /// <summary>
         /// Create a new link entry
         /// </summary>
@@ -29,12 +30,9 @@ namespace lnksnp.Controllers
         [HttpPost]
         public async Task<ActionResult<LinkResponse>> CreateLink([FromBody]LinkRequest linkreq)
         {
-            var req = Request.Headers["Origin"];
-            if (string.IsNullOrEmpty(req))
-            {
-                req = Request.IsHttps?"https://":"http://" +  Request.Host;
-            }
-
+            //lets just force HTTPS
+            //var reqHost = Request.IsHttps ? "https://" : "http://" + Request.Host.ToString();
+            var reqHost = "https://" + Request.Host.ToString();
             if (linkreq?.LongLink != null)
             {
                 UriBuilder builder = new UriBuilder(linkreq.LongLink);
@@ -46,7 +44,7 @@ namespace lnksnp.Controllers
                     newLink.ShortLink = Base64UrlEncoder.Encode(newLink.id.ToString());
                     await _context.SaveChangesAsync();
                     
-                    var shortLink = req + "/" + newLink.ShortLink;
+                    var shortLink = reqHost + "/" + newLink.ShortLink;
                     builder = new UriBuilder(shortLink);
 
                     LinkResponse linkResponse = new LinkResponse { 
