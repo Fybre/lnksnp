@@ -30,20 +30,39 @@ namespace lnksnp.Controllers
         [HttpPost]
         public async Task<ActionResult<LinkResponse>> CreateLink([FromBody]LinkRequest linkreq)
         {
+#if DEBUG
+            var reqHost = Request.IsHttps ? "https://" : "http://" + Request.Host.ToString();
+#else
             //lets just force HTTPS
-            //var reqHost = Request.IsHttps ? "https://" : "http://" + Request.Host.ToString();
             var reqHost = "https://" + Request.Host.ToString();
+#endif
             if (linkreq?.LongLink != null)
             {
                 UriBuilder builder = new UriBuilder(linkreq.LongLink);
                 if (builder.Uri.IsAbsoluteUri)
                 {
                     var newLink = new LinkSnip { LongLink = builder.Uri.ToString() };
+
+                    if (linkreq.RequestedShortLink != null)
+                    {
+                        var l = GetLinkSnip(linkreq.RequestedShortLink).Result;
+                        if (l == null)
+                        {
+                            newLink.ShortLink = linkreq.RequestedShortLink;
+                        }
+                        else
+                        {
+                            return Conflict("Could not add requested short link");
+                        }
+                    }
+
                     _context.Add(newLink);
                     await _context.SaveChangesAsync();
-                    newLink.ShortLink = Base64UrlEncoder.Encode(newLink.id.ToString());
-                    await _context.SaveChangesAsync();
-                    
+                    if (string.IsNullOrEmpty(newLink.ShortLink))
+                    {
+                        newLink.ShortLink = Base64UrlEncoder.Encode(newLink.id.ToString());
+                        await _context.SaveChangesAsync();
+                    }
                     var shortLink = reqHost + "/" + newLink.ShortLink;
                     builder = new UriBuilder(shortLink);
 
@@ -68,7 +87,7 @@ namespace lnksnp.Controllers
         {
             if (string.IsNullOrEmpty(shortLink)) { return NotFound(); }
             
-            var linkSnip = await _context.LinkSnips.FirstOrDefaultAsync(x => x.ShortLink == shortLink);
+            var linkSnip = await GetLinkSnip(shortLink);
             if (linkSnip != null)
             {
                 var newClick = new LinkClick
@@ -129,6 +148,11 @@ namespace lnksnp.Controllers
             {
                 return File("~/index.html", "text/html");
             }
+        }
+
+        private async Task<LinkSnip?>GetLinkSnip(string shortLink)
+        {
+            return await _context.LinkSnips.FirstOrDefaultAsync(x => x.ShortLink == shortLink);
         }
     }
 }
