@@ -14,12 +14,13 @@ namespace lnksnp.Controllers
     public class LinkSnipController : ControllerBase
     {
         private readonly LinkSnipContext _context;
+        private readonly string _ADMINKEY;
 
         public LinkSnipController(LinkSnipContext context)
         {
             _context = context;
+            _ADMINKEY = Environment.GetEnvironmentVariable("ADMINKEY") ?? "DefaultAdminKey";
         }
-
 
         /// <summary>
         /// Create a new link entry
@@ -43,10 +44,11 @@ namespace lnksnp.Controllers
                 {
                     var newLink = new LinkSnip { LongLink = builder.Uri.ToString() };
 
-                    if (linkreq.RequestedShortLink != null)
+                    if (!string.IsNullOrEmpty(linkreq.RequestedShortLink))
                     {
-                        var l = GetLinkSnip(linkreq.RequestedShortLink).Result;
-                        if (l == null)
+                        if (!ValidateKey(linkreq.AccessKey)) { return Unauthorized("Access key is required"); }
+
+                        if (GetLinkSnip(linkreq.RequestedShortLink).Result == null)
                         {
                             newLink.ShortLink = linkreq.RequestedShortLink;
                         }
@@ -126,7 +128,7 @@ namespace lnksnp.Controllers
                     ClickCount = groupedDetails.Count()  // Count the number of records for each linkId
                 }
             ).ToListAsync();
-
+            
             return linksWithClickCounts.Select(link => (dynamic)link).ToList();
         }
 
@@ -142,7 +144,7 @@ namespace lnksnp.Controllers
             OkObjectResult? lnk = res as OkObjectResult;    
             if (lnk != null && lnk.Value != null)
             {
-                return RedirectPermanent((lnk.Value as LinkSnip).LongLink);
+                return new RedirectResult((lnk.Value as LinkSnip).LongLink, permanent: true);
             }
             else
             {
@@ -153,6 +155,12 @@ namespace lnksnp.Controllers
         private async Task<LinkSnip?>GetLinkSnip(string shortLink)
         {
             return await _context.LinkSnips.FirstOrDefaultAsync(x => x.ShortLink == shortLink);
+        }
+
+        // we will just hack this for now
+        private bool ValidateKey(string? key)
+        {
+            return key == _ADMINKEY;
         }
     }
 }

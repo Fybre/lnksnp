@@ -17,5 +17,8 @@ RUN dotnet publish "lnksnp.csproj" -c Release -o /app/publish /p:UseAppHost=fals
 
 FROM base AS final
 WORKDIR /app
+
+ENV ADMINKEY = my_adminkey
+
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "lnksnp.dll"]
